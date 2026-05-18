@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>منظومة إدارة البيانات الشخصية المتكاملة</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&display=swap');
+        body { 
+            font-family: 'Cairo', sans-serif; 
+        }
+        .sidebar-transition { 
+            transition: transform 0.3s ease-in-out; 
+        }
+        .fade-in { 
+            animation: fadeIn 0.3s ease-in-out forwards; 
+        }
+        @keyframes fadeIn { 
+            from { opacity: 0; transform: translateY(5px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
+        @media print {
+            .no-print, header, aside, #searchControlPanel, #submitFormBtn, td:last-child, th:last-child {
+                display: none !important;
+            }
+            body { background-color: white !important; color: black !important; }
+            #printArea { width: 100% !important; margin: 0 !important; padding: 0 !important; }
+        }
+    </style>
+</head>
+<body id="mainBody" class="bg-slate-950 text-slate-100 min-h-screen overflow-x-hidden transition-colors duration-300">
+
+    <div id="loginPage" class="flex flex-col items-center justify-center min-h-screen px-4 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-950/40 via-slate-950 to-slate-950">
+        <div id="loginMainHeading" class="w-full max-w-md bg-gradient-to-r from-blue-600 to-indigo-600 text-center py-4 rounded-t-2xl shadow-2xl font-bold border-b border-white/10 text-white transition-all">
+            منظومة إدارة البيانات الشخصية المتكاملة
+        </div>
+        
+        <div id="loginCard" class="w-full max-w-md bg-slate-900 p-6 md:p-8 rounded-b-2xl shadow-2xl border-x border-b border-slate-800">
+            <h2 class="text-xl font-extrabold text-center mb-6 text-white">تسجيل الدخول للنظام</h2>
+            <form onsubmit="handleLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-2">اسم المستخدم</label>
+                    <input type="text" id="loginUser" required value="admin" class="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl focus:border-blue-500 text-white text-sm outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-2">كلمة المرور</label>
+                    <input type="password" id="loginPass" required value="admin" class="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl focus:border-blue-500 text-white text-sm outline-none">
+                </div>
+                <button type="submit" class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold py-3 rounded-xl shadow-lg transition transform hover:-translate-y-0.5">دخول المنظومة</button>
+            </form>
+            <div class="mt-5 text-center">
+                <button onclick="toggleRecoveryForm(true)" class="text-xs text-blue-400 hover:text-blue-300 transition font-semibold">هل نسيت بيانات الدخول؟ 🔑</button>
+            </div>
+        </div>
+
+        <div id="recoveryCard" class="hidden w-full max-w-md bg-slate-900 p-6 md:p-8 rounded-b-2xl shadow-2xl border-x border-b border-slate-800 fade-in">
+            <h2 class="text-lg font-extrabold text-center mb-2 text-white">استرجاع بيانات الحساب</h2>
+            <p class="text-xs text-slate-400 text-center mb-6">أدخل البريد أو رقم الهاتف المرتبط بحسابك.</p>
+            <form onsubmit="handleRecovery(event)" class="space-y-4">
+                <div>
+                    <input type="text" id="recoveryInput" required placeholder="example@mail.com أو 07xxxxxxxxx" class="w-full px-4 py-3 bg-slate-950 border border-slate-800 rounded-xl focus:border-blue-500 text-white text-sm text-center outline-none">
+                </div>
+                <button type="submit" class="w-full bg-gradient-to-r from-amber-600 to-orange-600 text-white font-bold py-3 rounded-xl shadow-lg">فحص واسترجاع الحساب 🔍</button>
+            </form>
+            <div class="mt-5 text-center">
+                <button onclick="toggleRecoveryForm(false)" class="text-xs text-slate-400 hover:text-white transition font-semibold">⬅️ العودة لصفحة الدخول</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="dashboardPage" class="hidden flex min-h-screen relative">
+        <div id="sidebarOverlay" onclick="toggleSidebar()" class="hidden fixed inset-0 bg-slate-950/60 z-40 md:hidden backdrop-blur-sm"></div>
+
+        <aside id="sidebar" class="fixed md:sticky top-0 right-0 h-screen w-72 bg-slate-900 border-l border-slate-800 flex flex-col justify-between p-5 z-50 transform translate-x-full md:translate-x-0 sidebar-transition shadow-2xl">
+            <div>
+                <div id="sidebarHeader" class="flex items-center justify-between gap-3 mb-4 p-3 bg-slate-950 rounded-xl border border-slate-800">
+                    <span id="siteNameLabel" class="font-extrabold text-xs text-slate-200 truncate">لوحة تحكم الآدمن</span>
+                    <button onclick="toggleSidebar()" class="md:hidden text-slate-400 hover:text-white p-1">✕</button>
+                </div>
+                <button onclick="toggleTheme()" class="w-full mb-6 flex items-center justify-between px-4 py-2.5 bg-slate-950 border border-slate-800 text-xs font-bold rounded-xl" id="themeToggleBtn">
+                    <span class="text-slate-400">المظهر:</span>
+                    <span id="themeBtnText" class="text-blue-400">الوضع الداكن 🌙</span>
+                </button>
+                <nav class="space-y-1.5">
+                    <button id="inputTabBtn" onclick="switchTab('input-section', this)" class="tab-btn w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:bg-slate-800/50 rounded-xl text-xs md:text-sm font-bold">📝 استمارة الإدخال</button>
+                    <button id="dataTabBtn" onclick="switchTab('data-section', this)" class="tab-btn w-full flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-xs md:text-sm font-bold shadow-md">📊 عرض السجلات والبحث</button>
+                    <button id="settingsTabBtn" onclick="switchTab('settings-section', this)" class="tab-btn w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:bg-slate-800/50 rounded-xl text-xs md:text-sm font-bold">⚙️ الإعدادات والصلاحيات</button>
+                </nav>
+            </div>
+
+            <div id="adminCardInfo" class="p-4 bg-slate-950 rounded-xl border border-slate-800 text-xs space-y-2.5">
+                <p class="text-slate-400">المستخدم: <span id="currentAdminName" class="text-emerald-400 font-bold">-</span></p>
+                <p class="text-slate-400">الصلاحية: <span id="currentAdminRole" class="text-amber-400 font-medium">-</span></p>
+                <button onclick="logout()" class="w-full bg-rose-950/40 hover:bg-rose-900 border border-rose-900/50 text-rose-200 py-2 rounded-xl font-bold text-center block shadow-sm">تسجيل الخروج 🚪</button>
+            </div>
+        </aside>
+
+        <div class="flex-1 flex flex-col min-w-0">
+            <header id="siteHeader" class="bg-slate-900/60 backdrop-blur-md border-b border-slate-800 p-4 flex items-center justify-between md:justify-end sticky top-0 z-30">
+                <button onclick="toggleSidebar()" class="md:hidden bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-bold border border-slate-800 shadow-md">☰ القائمة</button>
+                <div id="connectionStatusCard" class="flex items-center gap-2 text-xs text-slate-400 bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800">
+                    <span id="statusDot" class="w-2 h-2 bg-amber-500 rounded-full"></span>
+                    <span id="statusText">جاري فحص الاتصال السحابي...</span>
+                </div>
+            </header>
+
+            <main class="flex-1 p-4 md:p-6 overflow-y-auto">
+                <section id="input-section" class="tab-content fade-in hidden max-w-4xl mx-auto bg-slate-900 p-5 md:p-8 rounded-2xl border border-slate-800 shadow-2xl">
+                    <h2 class="text-base font-bold text-blue-400 mb-6 border-b border-slate-800 pb-4 flex justify-between items-center">
+                        <span>✍️ استمارة إدخال معلومات شخصية جديدة</span>
+                        <button type="button" id="cancelEditBtn" onclick="cancelEditing()" class="hidden bg-rose-950/40 text-rose-200 border border-rose-900/50 text-xs px-3 py-1.5 rounded-lg font-bold">إلغاء ✕</button>
+                    </h2>
+                    <form id="dataForm" onsubmit="handleDataSubmit(event)" class="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
+                        <div><label class="block text-xs text-slate-400 mb-1.5">الاسم الكامل</label><input type="text" id="fullName" required class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-white outline-none"></div>
+                        <div><label class="block text-xs text-slate-400 mb-1.5">المواليد</label><input type="date" id="birthDate" required class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-white outline-none"></div>
+                        <div><label class="block text-xs text-slate-400 mb-1.5">عنوان السكن</label><input type="text" id="address" required class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-white outline-none"></div>
+                        <div><label class="block text-xs text-slate-400 mb-1.5">رقم الهاتف</label><input type="tel" id="phone" required class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-left text-sm text-white outline-none" placeholder="07xxxxxxxx"></div>
+                        <div><label class="block text-xs text-slate-400 mb-1.5">العنوان الوظيفي</label><input type="text" id="jobTitle" required class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-white outline-none"></div>
+                        <div><label class="block text-xs text-slate-400 mb-1.5">الراتب (بالدينار)</label><input type="number" id="salary" required class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-white outline-none"></div>
+                        <div class="sm:col-span-2"><label class="block text-xs text-slate-400 mb-1.5">📸 الصورة الشخصية</label><input type="file" id="personalPhoto" accept="image/*" class="w-full text-xs text-slate-400 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:bg-blue-600 file:text-white cursor-pointer"></div>
+                        <div class="sm:col-span-2 pt-4 flex justify-end"><button type="submit" id="submitFormBtn" class="w-full sm:w-auto bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-8 py-3 rounded-xl text-xs font-bold shadow-lg">حفظ ومزامنة سحابية ☁️</button></div>
+                    </form>
+                </section>
+
+                <section id="data-section" class="tab-content fade-in block space-y-5">
+                    <div id="searchControlPanel" class="bg-slate-900 p-5 rounded-2xl border border-slate-800 shadow-xl space-y-4">
+                        <div class="relative w-full">
+                            <span class="absolute inset-y-0 right-0 flex items-center pr-4 text-slate-400 pointer-events-none">
+                                🔍
+                            </span>
+                            <input type="text" id="searchBar" oninput="searchData()" placeholder="ابحث بالاسم، الوظيفة، السكن أو الـ ID..." class="bg-slate-950 border border-slate-800 rounded-xl pr-11 pl-4 py-3.5 text-sm w-full outline-none text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all duration-200">
+                        </div>
+                        <div class="grid grid-cols-3 gap-2">
+                            <button onclick="exportToExcel()" class="bg-emerald-600/10 hover:bg-emerald-600 text-emerald-400 hover:text-white border border-emerald-500/20 text-xs py-2.5 rounded-xl font-bold transition">Excel 🟢</button>
+                            <button onclick="exportToPDF()" class="bg-rose-600/10 hover:bg-rose-600 text-rose-400 hover:text-white border border-rose-500/20 text-xs py-2.5 rounded-xl font-bold transition">PDF 🔴</button>
+                            <button onclick="window.print()" class="bg-slate-800 text-slate-200 text-xs py-2.5 rounded-xl font-bold border border-slate-700 hover:bg-slate-700 transition">طباعة 🖨️</button>
+                        </div>
+                    </div>
+                    <div id="printArea">
+                        <div id="desktopTableContainer" class="hidden md:block bg-slate-900 rounded-2xl border border-slate-800 overflow-x-auto">
+                            <table class="w-full text-right text-sm">
+                                <thead class="bg-slate-950 text-slate-300 border-b border-slate-800">
+                                    <tr><th class="p-4 text-center">ID</th><th class="p-4 text-center">الصورة</th><th class="p-4">المعلومات الشخصية</th><th class="p-4">العنوان الوظيفي</th><th class="p-4">الهاتف</th><th class="p-4">الراتب</th><th class="p-4">تاريخ الإدخال</th><th class="p-4 text-center">التحكم</th></tr>
+                                </thead>
+                                <tbody id="tableBodyDesktop" class="divide-y divide-slate-800/60"></tbody>
+                            </table>
+                        </div>
+                        <div id="tableBodyMobile" class="block md:hidden space-y-4"></div>
+                    </div>
+                </section>
+
+                <section id="settings-section" class="tab-content fade-in hidden max-w-4xl mx-auto space-y-6">
+                    <div id="adminManagementPanel" class="bg-slate-900 p-5 md:p-6 rounded-2xl border border-slate-800 shadow-xl space-y-6">
+                        <div id="primaryAdminOnlyArea" class="space-y-6">
+                            <div class="p-5 bg-slate-950 rounded-xl border border-slate-800 space-y-4">
+                                <h4 class="text-xs font-bold text-indigo-400">✏️ تعديل وتخصيص اسم اللوغو الرئيسي</h4>
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                                    <div class="sm:col-span-2"><input type="text" id="systemNameInput" class="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none"></div>
+                                    <button onclick="updateSystemName()" class="bg-indigo-600 text-white text-xs px-4 py-2.5 rounded-xl font-bold shadow-md transition">تحديث اللوغو ✨</button>
+                                </div>
+                            </div>
+                            <div class="p-5 bg-slate-950 rounded-xl border border-slate-800 space-y-4">
+                                <h4 class="text-xs font-bold text-blue-400">➕ إنشاء حساب مشرف فرعي (آدمن ثاني)</h4>
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                    <input type="text" id="newSubUser" placeholder="اسم المستخدم" class="bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none">
+                                    <input type="password" id="newSubPass" placeholder="الرمز السري" class="bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none">
+                                    <input type="text" id="newSubName" placeholder="الاسم المستعار" class="bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none">
+                                    <input type="email" id="newSubEmail" placeholder="البريد الإلكتروني" class="bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none">
+                                    <input type="tel" id="newSubPhone" placeholder="رقم الهاتف للاسترجاع" class="bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none">
+                                </div>
+                                <div class="bg-slate-900 p-3.5 rounded-xl border border-slate-800/80 flex gap-5 text-xs">
+                                    <label><input type="checkbox" id="permEdit" checked class="accent-blue-600"> السماح بالتعديل</label>
+                                    <label><input type="checkbox" id="permDelete" checked class="accent-blue-600"> السماح بالحذف</label>
+                                </div>
+                                <button onclick="createNewSubAdmin()" class="bg-blue-600 text-white text-xs px-5 py-2.5 rounded-xl font-bold shadow-md">إنشاء الحساب</button>
+                            </div>
+                            <div class="p-5 bg-slate-950 rounded-xl border border-slate-800 space-y-3">
+                                <h4 class="text-xs font-bold text-slate-300">👥 الحسابات الثانوية والتحكم بها</h4>
+                                <div class="overflow-x-auto"><table class="w-full text-right text-xs"><tbody id="subAdminsTableBody"></tbody></table></div>
+                            </div>
+                            <div class="p-5 bg-slate-950 rounded-xl border border-slate-800 space-y-3">
+                                <h4 class="text-xs font-bold text-amber-400">⏱️ سجل تتبع حركات دخول وخروج المشرفين (Logs)</h4>
+                                <div class="overflow-x-auto max-h-48 rounded-lg"><table class="w-full text-right text-xs"><tbody id="trackingLogsTableBody"></tbody></table></div>
+                            </div>
+                        </div>
+                        <div id="subAdminRestrictionMessage" class="hidden p-4 bg-amber-950/40 text-amber-300 border border-amber-900/50 rounded-xl text-xs font-bold text-center">⚠️ ميزات الإدارة والتحكم والصلاحيات الأمنية واللوغو متاحة حصرياً للأدمن الرئيسي.</div>
+                        <div class="p-5 bg-slate-950 rounded-xl border border-slate-800 space-y-3">
+                            <h4 class="text-xs font-bold text-slate-300">🔒 حماية وتغيير الرمز السري لحسابك الحالي</h4>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                                <div class="sm:col-span-2"><input type="password" id="newAdminPassword" placeholder="أدخل الرمز الجديد هنا" class="w-full bg-slate-900 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none"></div>
+                                <button onclick="updatePassword()" class="bg-emerald-600 text-white text-xs px-4 py-2.5 rounded-xl font-bold shadow-md h-[38px]">تحديث</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================================
+        // إعدادات ومفاتيح ربط قاعدة بيانات Supabase الرسمية
+        // ==========================================================
+        const SUPABASE_URL = "https://ygipfkskjaisxryulqly.supabase.co"; 
+        const SUPABASE_ANON_KEY = "sb_publishable_rIOWSSulXRaTYBFAcxh9BA_uyKEvSrU";
+        
+        let _supabase = null;
+        if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+            _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        }
+
+        let dataset = [];
+        let isDarkMode = true; 
+        let editingRecordId = null; 
+        let currentAdmin = null;
+        let systemName = "منظومة إدارة البيانات الشخصية المتكاملة";
+
+        let adminsList = [
+            { user: "admin", pass: "admin", role: "main", name: "الآدمن الرئيسي", active: true, email: "admin@arena.com", phone: "07700000000" },
+            { user: "omar", pass: "1234", role: "sub", name: "عمر المشرف", active: true, permEdit: false, permDelete: false, email: "omar@arena.com", phone: "07712345678" }
+        ];
+
+        let trackingLogs = [];
+
+        // دالة جلب البيانات الحقيقية من الـ Cloud
+        async function fetchFromSupabase() {
+            try {
+                if (!_supabase) throw new Error("مفاتيح الاتصال غير مهيأة.");
+                
+                let { data, error } = await _supabase.from('employees').select('*').order('id', { ascending: true });
+                if (error) throw error;
+                
+                dataset = data || [];
+                renderTable();
+                
+                if(document.getElementById('statusDot')) {
+                    document.getElementById('statusDot').className = "w-2 h-2 bg-emerald-500 rounded-full animate-pulse";
+                    document.getElementById('statusText').innerText = "متصل بـ Supabase ومزامن ☁️";
+                }
+            } catch (err) {
+                console.error(err);
+                if (document.getElementById('statusDot')) {
+                    document.getElementById('statusDot').className = "w-2 h-2 bg-rose-500 rounded-full";
+                    document.getElementById('statusText').innerText = "وضع التجربة المحلية (فشل الاتصال بـ السحابة)";
+                }
+            }
+        }
+
+        function updateSystemName() {
+            const inputVal = document.getElementById('systemNameInput').value.trim();
+            if(inputVal === "") { alert("⚠️ يرجى إدخال اسم صحيح."); return; }
+            systemName = inputVal; applySystemNameUI();
+            alert("✨ تم تحديث اللوغو بنجاح!");
+        }
+
+        function applySystemNameUI() {
+            document.getElementById('loginMainHeading').innerText = "🌐 " + systemName;
+            document.getElementById('siteNameLabel').innerText = systemName;
+            document.getElementById('systemNameInput').value = systemName;
+        }
+
+        function toggleTheme() {
+            isDarkMode = !isDarkMode;
+            const body = document.getElementById('mainBody');
+            const sidebar = document.getElementById('sidebar');
+            const themeBtnText = document.getElementById('themeBtnText');
+            const sections = document.querySelectorAll('#input-section, #searchControlPanel, #desktopTableContainer, #adminManagementPanel');
+
+            if (!isDarkMode) {
+                body.classList.replace('bg-slate-950', 'bg-slate-100'); body.classList.replace('text-slate-100', 'text-slate-800');
+                sidebar.classList.replace('bg-slate-900', 'bg-white');
+                themeBtnText.innerText = "الوضع الفاتح ☀️";
+                sections.forEach(el => { el.classList.replace('bg-slate-900', 'bg-white'); el.classList.replace('border-slate-800', 'border-slate-200'); });
+            } else {
+                body.classList.replace('bg-slate-100', 'bg-slate-950'); body.classList.replace('text-slate-800', 'text-slate-100');
+                sidebar.classList.replace('bg-white', 'bg-slate-900');
+                themeBtnText.innerText = "الوضع الداكن 🌙";
+                sections.forEach(el => { el.classList.replace('bg-white', 'bg-slate-900'); el.classList.replace('border-slate-200', 'border-slate-800'); });
+            }
+            renderTable(); 
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            let userInput = document.getElementById('loginUser').value.trim();
+            let passInput = document.getElementById('loginPass').value;
+            let foundAdmin = adminsList.find(a => a.user === userInput && a.pass === passInput);
+
+            if (foundAdmin) {
+                if (!foundAdmin.active) { alert("⚠️ هذا الحساب معطل حالياً."); return; }
+                currentAdmin = foundAdmin;
+                document.getElementById('currentAdminName').innerText = currentAdmin.name;
+                document.getElementById('currentAdminRole').innerText = currentAdmin.role === "main" ? "آدمن رئيسي" : "مشرف فرعي";
+                if(currentAdmin.role === "sub") { addLog(currentAdmin.name, "تسجيل دخول إلى المنظومة 🟢"); }
+                applyPrivacySettings();
+                document.getElementById('loginPage').classList.add('hidden');
+                document.getElementById('dashboardPage').classList.remove('hidden');
+                fetchFromSupabase(); // جلب البيانات فور تسجيل الدخول الصحيح
+            } else { alert("❌ خطأ في معلومات الدخول!"); }
+        }
+
+        function toggleRecoveryForm(showRecovery) {
+            if(showRecovery) {
+                document.getElementById('loginCard').classList.add('hidden');
+                document.getElementById('recoveryCard').classList.remove('hidden');
+            } else {
+                document.getElementById('recoveryCard').classList.add('hidden');
+                document.getElementById('loginCard').classList.remove('hidden');
+            }
+        }
+
+        function handleRecovery(e) {
+            e.preventDefault();
+            const inputVal = document.getElementById('recoveryInput').value.trim().toLowerCase();
+            let account = adminsList.find(a => a.email.toLowerCase() === inputVal || a.phone === inputVal);
+            if (account) {
+                alert(`👤 الحساب المكتشف:\nالمستخدم: ${account.user}\nالرمز السري: ${account.pass}`);
+                toggleRecoveryForm(false);
+            } else { alert("❌ لا يوجد حساب مسجل بهذه البيانات!"); }
+        }
+
+        function logout() {
+            if (currentAdmin && currentAdmin.role === "sub") { addLog(currentAdmin.name, "تسجيل خروج 🔴"); }
+            currentAdmin = null;
+            document.getElementById('dashboardPage').classList.add('hidden');
+            document.getElementById('loginPage').classList.remove('hidden');
+        }
+
+        function addLog(adminName, actionType) {
+            const now = new Date();
+            const timestamp = now.toLocaleDateString('ar-EG') + ' | ' + now.toLocaleTimeString('ar-EG');
+            trackingLogs.unshift({ name: adminName, action: actionType, time: timestamp });
+            renderTrackingLogs();
+        }
+
+        function renderTrackingLogs() {
+            const logBody = document.getElementById('trackingLogsTableBody'); if(!logBody) return;
+            logBody.innerHTML = trackingLogs.map(log => `
+                <tr class="border-b border-slate-800 text-slate-300">
+                    <td class="p-2 font-bold">${log.name}</td>
+                    <td class="p-2">${log.action}</td>
+                    <td class="p-2 text-left text-slate-500 font-mono text-[11px]">${log.time}</td>
+                </tr>`).join('');
+        }
+
+        function applyPrivacySettings() {
+            const primaryAdminArea = document.getElementById('primaryAdminOnlyArea');
+            const subAdminMsg = document.getElementById('subAdminRestrictionMessage');
+            if (currentAdmin.role === "main") { primaryAdminArea.classList.remove('hidden'); subAdminMsg.classList.add('hidden'); } 
+            else { primaryAdminArea.classList.add('hidden'); subAdminMsg.classList.remove('hidden'); }
+            renderTable(); renderSubAdminsList(); renderTrackingLogs();
+        }
+
+        function createNewSubAdmin() {
+            const user = document.getElementById('newSubUser').value.trim();
+            const pass = document.getElementById('newSubPass').value.trim();
+            const name = document.getElementById('newSubName').value.trim();
+            const email = document.getElementById('newSubEmail').value.trim();
+            const phone = document.getElementById('newSubPhone').value.trim();
+            const permEdit = document.getElementById('permEdit').checked;
+            const permDelete = document.getElementById('permDelete').checked;
+
+            if(!user || !pass || !name || !email || !phone) { alert("يرجى ملء الحقول!"); return; }
+            adminsList.push({ user, pass, role: "sub", name, active: true, permEdit, permDelete, email, phone });
+            alert(`تم إنشاء حساب المشرف الفرعي: ${name}`);
+            renderSubAdminsList();
+        }
+
+        function toggleSubAdminStatus(user) {
+            let admin = adminsList.find(a => a.user === user);
+            if (admin) { admin.active = !admin.active; renderSubAdminsList(); }
+        }
+
+        function deleteSubAdmin(user) {
+            if(confirm("هل تود حذف المشرف؟")) { adminsList = adminsList.filter(a => a.user !== user); renderSubAdminsList(); }
+        }
+
+        function renderSubAdminsList() {
+            const tbody = document.getElementById('subAdminsTableBody'); if(!tbody) return;
+            let subs = adminsList.filter(a => a.role !== 'main');
+            tbody.innerHTML = subs.map(a => `
+                <tr class="border-b border-slate-800 text-slate-300">
+                    <td class="py-2">${a.name} (${a.user})</td>
+                    <td class="py-2 text-center">${a.permEdit ? '✅ تعديل' : '❌'} | ${a.permDelete ? '✅ حذف' : '❌'}</td>
+                    <td class="py-2 text-center">${a.active ? 'نشط' : 'معطل'}</td>
+                    <td class="py-2 text-center">
+                        <button onclick="toggleSubAdminStatus('${a.user}')" class="bg-slate-800 px-2 py-0.5 rounded text-[11px]">تبديل الحالة</button>
+                        <button onclick="deleteSubAdmin('${a.user}')" class="bg-rose-900/50 text-rose-300 px-2 py-0.5 rounded text-[11px]">حذف</button>
+                    </td>
+                </tr>`).join('');
+        }
+
+        function updatePassword() {
+            let p = document.getElementById('newAdminPassword').value;
+            if (p.trim() !== "") { currentAdmin.pass = p.trim(); alert('تم التحديث الحماية بنجاح!'); document.getElementById('newAdminPassword').value = ''; }
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar'); 
+            const overlay = document.getElementById('sidebarOverlay');
+            if (sidebar.classList.contains('translate-x-full')) { 
+                sidebar.classList.remove('translate-x-full'); 
+                overlay.classList.remove('hidden'); 
+            } else { 
+                sidebar.classList.add('translate-x-full'); 
+                overlay.classList.add('hidden'); 
+            }
+        }
+
+        function switchTab(tabId, btnElement) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(tabId).classList.remove('hidden');
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('bg-gradient-to-r', 'from-blue-600', 'to-indigo-600', 'text-white'));
+            btnElement.classList.add('bg-gradient-to-r', 'from-blue-600', 'to-indigo-600', 'text-white');
+            
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            if (!sidebar.classList.contains('translate-x-full') && window.innerWidth < 768) {
+                sidebar.classList.add('translate-x-full');
+                overlay.classList.add('hidden');
+            }
+        }
+
+        // دالة الرفع والمزامنة المحدثة للـ Cloud بالكامل
+        async function handleDataSubmit(e) {
+            e.preventDefault();
+            const now = new Date(); 
+            const formattedDate = now.toLocaleDateString('ar-EG') + ' | ' + now.toLocaleTimeString('ar-EG');
+            const fileInput = document.getElementById('personalPhoto');
+
+            const proceedSubmit = async (photoBase64) => {
+                const payload = {
+                    name: document.getElementById('fullName').value,
+                    birth: document.getElementById('birthDate').value,
+                    address: document.getElementById('address').value,
+                    phone: document.getElementById('phone').value,
+                    job: document.getElementById('jobTitle').value,
+                    salary: parseInt(document.getElementById('salary').value),
+                    date: formattedDate
+                };
+                if(photoBase64) payload.photo = photoBase64;
+
+                try {
+                    if (_supabase) {
+                        if (editingRecordId !== null) {
+                            payload.date = formattedDate + " (معدل)";
+                            let { error } = await _supabase.from('employees').update(payload).eq('id', editingRecordId);
+                            if (error) throw error;
+                            cancelEditing();
+                        } else {
+                            let { error } = await _supabase.from('employees').insert([payload]);
+                            if (error) throw error;
+                        }
+                        await fetchFromSupabase(); // تحديث فوري للجداول
+                    } else {
+                        alert("⚠️ المنظومة غير متصلة بـ سوبابيس");
+                    }
+                    document.getElementById('dataForm').reset();
+                    switchTab('data-section', document.getElementById('dataTabBtn'));
+                } catch (err) {
+                    alert("❌ فشل حفظ البيانات في السحابة: " + err.message);
+                }
+            };
+
+            if (fileInput.files && fileInput.files[0]) {
+                const reader = new FileReader(); 
+                reader.onload = function(e) { proceedSubmit(e.target.result); }; 
+                reader.readAsDataURL(fileInput.files[0]);
+            } else { 
+                proceedSubmit(editingRecordId !== null ? dataset.find(i => i.id === editingRecordId).photo : null); 
+            }
+        }
+
+        function renderTable(dataToRender = dataset) {
+            const tbodyDesktop = document.getElementById('tableBodyDesktop'); const tbodyMobile = document.getElementById('tableBodyMobile');
+            if(!tbodyDesktop || !tbodyMobile) return;
+            tbodyDesktop.innerHTML = ''; tbodyMobile.innerHTML = '';
+            
+            const canEdit = currentAdmin ? (currentAdmin.role === 'main' || currentAdmin.permEdit) : true;
+            const canDelete = currentAdmin ? (currentAdmin.role === 'main' || currentAdmin.permDelete) : true;
+
+            dataToRender.forEach(item => {
+                let desktopBtns = '';
+                let mobileBtns = '';
+                
+                if(canEdit) {
+                    desktopBtns += `<button onclick="editRecord(${item.id})" class="text-blue-400 hover:text-blue-300 mx-1 transition">📝 تعديل</button>`;
+                    mobileBtns += `<button onclick="editRecord(${item.id})" class="flex-1 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 py-2.5 rounded-xl font-bold border border-blue-500/10 text-center transition">📝 تعديل</button>`;
+                }
+                if(canDelete) {
+                    desktopBtns += `<button onclick="deleteRecord(${item.id})" class="text-rose-400 hover:text-rose-300 mx-1 transition">🗑️ حذف</button>`;
+                    mobileBtns += `<button onclick="deleteRecord(${item.id})" class="flex-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 py-2.5 rounded-xl font-bold border border-rose-500/10 text-center transition">🗑️ حذف</button>`;
+                }
+
+                tbodyDesktop.innerHTML += `
+                    <tr class="border-b border-slate-800 hover:bg-slate-800/30 transition">
+                        <td class="p-3 text-center text-blue-400 font-bold">${item.id}</td>
+                        <td class="p-1 text-center">${item.photo ? `<img src="${item.photo}" class="w-9 h-9 rounded-full object-cover mx-auto"/>` : '❌'}</td>
+                        <td class="p-3"><strong>${item.name}</strong><br><span class="text-[11px] text-slate-500">${item.address} | ${item.birth}</span></td>
+                        <td class="p-3">${item.job}</td>
+                        <td class="p-3 font-mono">${item.phone}</td>
+                        <td class="p-3 text-emerald-400 font-bold">${parseInt(item.salary).toLocaleString()} د.ع</td>
+                        <td class="p-3 text-[11px] text-slate-500">${item.date}</td>
+                        <td class="p-3 text-center">${desktopBtns}</td>
+                    </tr>`;
+
+                tbodyMobile.innerHTML += `
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4 hover:border-slate-700 transition duration-300 transform hover:-translate-y-0.5">
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                            <div class="flex items-center gap-3">
+                                ${item.photo ? `<img src="${item.photo}" class="w-11 h-11 rounded-full object-cover border border-slate-700"/>` : `<div class="w-11 h-11 bg-slate-950 rounded-full flex items-center justify-center border border-slate-800 text-base">👤</div>`}
+                                <div>
+                                    <h4 class="font-bold text-sm text-slate-100">${item.name}</h4>
+                                    <p class="text-[11px] text-blue-400 font-semibold">رقم التعريف: ${item.id}#</p>
+                                </div>
+                            </div>
+                            <span class="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs px-3 py-1.5 rounded-xl font-bold">
+                                ${parseInt(item.salary).toLocaleString()} د.ع
+                            </span>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-y-3 gap-x-2 text-xs text-slate-300">
+                            <div class="space-y-0.5">
+                                <span class="text-[10px] text-slate-500 block">💼 العنوان الوظيفي</span>
+                                <span class="font-medium text-slate-200">${item.job}</span>
+                            </div>
+                            <div class="space-y-0.5">
+                                <span class="text-[10px] text-slate-500 block">📞 رقم الهاتف</span>
+                                <span class="font-mono text-slate-200">${item.phone}</span>
+                            </div>
+                            <div class="space-y-0.5">
+                                <span class="text-[10px] text-slate-500 block">📍 السكن</span>
+                                <span class="font-medium text-slate-200">${item.address}</span>
+                            </div>
+                            <div class="space-y-0.5">
+                                <span class="text-[10px] text-slate-500 block">📅 تاريخ الإدخال</span>
+                                <span class="text-[11px] text-slate-400">${item.date}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="flex gap-2.5 pt-2 border-t border-slate-800/60">
+                            ${mobileBtns}
+                        </div>
+                    </div>`;
+            });
+        }
+
+        function searchData() {
+            let filter = document.getElementById('searchBar').value.trim().toLowerCase();
+            if (filter === "") { renderTable(dataset); return; }
+            
+            let filteredData = dataset.filter(item => {
+                return item.name.toLowerCase().includes(filter) || 
+                       item.id.toString() === filter ||
+                       item.job.toLowerCase().includes(filter) ||
+                       item.phone.includes(filter) ||
+                       item.address.toLowerCase().includes(filter);
+            });
+            renderTable(filteredData);
+        }
+
+        function editRecord(id) {
+            let item = dataset.find(i => i.id === id);
+            if (item) {
+                editingRecordId = id;
+                document.getElementById('fullName').value = item.name; document.getElementById('birthDate').value = item.birth;
+                document.getElementById('address').value = item.address; document.getElementById('phone').value = item.phone; 
+                document.getElementById('jobTitle').value = item.job; document.getElementById('salary').value = item.salary;
+                document.getElementById('submitFormBtn').innerText = "تحديث البيانات 📝";
+                document.getElementById('cancelEditBtn').classList.remove('hidden');
+                switchTab('input-section', document.getElementById('inputTabBtn'));
+            }
+        }
+
+        function cancelEditing() {
+            editingRecordId = null; document.getElementById('dataForm').reset();
+            document.getElementById('submitFormBtn').innerText = "حفظ ومزامنة سحابية ☁️";
+            document.getElementById('cancelEditBtn').classList.add('hidden');
+        }
+
+        // دالة الحذف المرتبطة سحابياً
+        async function deleteRecord(id) { 
+            if (!confirm('هل أنت متأكد من الرغبة بحذف هذا السجل نهائياً؟')) return; 
+            try {
+                if (_supabase) {
+                    let { error } = await _supabase.from('employees').delete().eq('id', id);
+                    if (error) throw error;
+                    await fetchFromSupabase();
+                }
+            } catch (err) {
+                alert("❌ فشل الحذف: " + err.message);
+            }
+        }
+        
+        function exportToExcel() { let wb = XLSX.utils.book_new(); let ws = XLSX.utils.json_to_sheet(dataset); XLSX.utils.book_append_sheet(wb, ws, "البيانات"); XLSX.writeFile(wb, "تقرير_البيانات.xlsx"); }
+        function exportToPDF() { html2pdf().from(document.getElementById('printArea')).save('تقرير.pdf'); }
+
+        document.addEventListener("DOMContentLoaded", function() {
+            applySystemNameUI();
+        });
+    </script>
+</body>
+</html>
